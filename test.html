@@ -1,0 +1,407 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>接線と導関数 — 動く対応関係</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Space+Mono:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1c2a22;
+    --bg-deep: #16211a;
+    --chalk: #ece7da;
+    --chalk-dim: rgba(236,231,218,0.55);
+    --grid: rgba(236,231,218,0.10);
+    --yellow: #f3d27a;
+    --blue: #7ec8e3;
+    --coral: #f08a63;
+    --coral-dim: rgba(240,138,99,0.5);
+    --panel: rgba(255,255,255,0.04);
+    --panel-border: rgba(236,231,218,0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg) 0%, var(--bg-deep) 70%);
+    color: var(--chalk);
+    font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 28px 20px 36px;
+  }
+
+  header { margin-bottom: 6px; }
+
+  .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--chalk-dim);
+    text-transform: uppercase;
+    margin: 0 0 4px;
+  }
+
+  h1 {
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    font-size: 38px;
+    line-height: 1.1;
+    margin: 0 0 10px;
+    color: var(--chalk);
+  }
+
+  .subtitle {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--chalk-dim);
+    margin: 0 0 18px;
+    max-width: 620px;
+  }
+  .subtitle .swatch {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+
+  .plot-wrap {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 10px 8px 4px;
+  }
+
+  svg { display: block; width: 100%; height: auto; }
+
+  .plot-label {
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    font-size: 23px;
+  }
+  .axis-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    fill: var(--chalk-dim);
+  }
+
+  .readout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 16px 0 14px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--chalk-dim);
+    border-radius: 8px;
+    padding: 9px 12px;
+  }
+  .stat.x { border-left-color: var(--coral); }
+  .stat.f { border-left-color: var(--yellow); }
+  .stat.fp { border-left-color: var(--blue); }
+  .stat .k {
+    font-size: 11px;
+    color: var(--chalk-dim);
+    margin: 0 0 2px;
+  }
+  .stat .v {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  button.playbtn {
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    background: var(--coral);
+    color: #20140d;
+    border: none;
+    border-radius: 999px;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+    flex-shrink: 0;
+  }
+  button.playbtn:hover { filter: brightness(1.08); }
+  button.playbtn:focus-visible { outline: 2px solid var(--chalk); outline-offset: 2px; }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 220px;
+  }
+  .slider-row label {
+    font-size: 12px;
+    color: var(--chalk-dim);
+    white-space: nowrap;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--coral);
+    height: 4px;
+    cursor: pointer;
+  }
+  input[type="range"]:focus-visible { outline: 2px solid var(--chalk); }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 30px; }
+    .readout { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* handled in JS: autoplay starts paused */
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <p class="eyebrow">f(x) = x² と f'(x) = 2x</p>
+    <h1>接線が動くと、導関数のどこが動くのか</h1>
+    <p class="subtitle">
+      上のグラフは放物線 <strong>f(x) = x²</strong> と、その接線。下のグラフは導関数
+      <strong>f'(x) = 2x</strong> です。<br>
+      <span class="swatch" style="background:var(--coral)"></span>上の接線の<strong>傾き</strong>が、
+      下のグラフの点の<strong>高さ（y座標）</strong>とちょうど同じ値になっています。
+      点線は「同じ x」を結んでいます。
+    </p>
+  </header>
+
+  <div class="plot-wrap">
+    <svg id="plot" viewBox="0 0 760 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="放物線とその接線、導関数とその点が連動して動くアニメーション">
+
+      <!-- ===== TOP PLOT: f(x) = x^2 ===== -->
+      <g id="topGrid"></g>
+      <text class="plot-label" x="66" y="52" fill="var(--yellow)">f(x) = x²</text>
+      <path id="parabola" fill="none" stroke="#f3d27a" stroke-width="3" stroke-linecap="round" />
+      <line id="tangent" stroke="#f08a63" stroke-width="3.5" stroke-linecap="round" />
+      <circle id="pointTop" r="9" fill="none" stroke="#f08a63" stroke-width="2" opacity="0.55" />
+      <circle id="pointTopCore" r="5.5" fill="#f08a63" />
+
+      <!-- ===== BOTTOM PLOT: f'(x) = 2x ===== -->
+      <g id="botGrid"></g>
+      <text class="plot-label" x="66" y="382" fill="var(--blue)">f'(x) = 2x （導関数）</text>
+      <line id="derivLine" stroke="#7ec8e3" stroke-width="3" stroke-linecap="round" />
+      <circle id="pointBot" r="9" fill="none" stroke="#f08a63" stroke-width="2" opacity="0.55" />
+      <circle id="pointBotCore" r="5.5" fill="#f08a63" />
+
+      <!-- connector crossing the gap between the two plots -->
+      <line id="connector" stroke="#f08a63" stroke-width="2" stroke-dasharray="3 6" opacity="0.65" />
+
+      <!-- shared x-axis tick labels (drawn once, below bottom plot) -->
+      <g id="xTicks"></g>
+    </svg>
+  </div>
+
+  <div class="readout">
+    <div class="stat x">
+      <p class="k">x</p>
+      <p class="v" id="vx">0.00</p>
+    </div>
+    <div class="stat f">
+      <p class="k">f(x) = x²　（点の高さ）</p>
+      <p class="v" id="vf">0.00</p>
+    </div>
+    <div class="stat fp">
+      <p class="k">f'(x) = 2x　（接線の傾き）</p>
+      <p class="v" id="vfp">0.00</p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="playbtn" id="playBtn" type="button">⏸ 一時停止</button>
+    <div class="slider-row">
+      <label for="xSlider">x を手動で動かす</label>
+      <input type="range" id="xSlider" min="-3.2" max="3.2" step="0.01" value="0">
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---- coordinate system ----
+  const X_MIN = -3.2, X_MAX = 3.2;
+  const YT_MIN = -1, YT_MAX = 10;     // top plot (f)
+  const YB_MIN = -7, YB_MAX = 7;      // bottom plot (f')
+
+  const PLOT_LEFT = 60, PLOT_RIGHT = 740; // pixel x range
+  const TOP_TOP = 30, TOP_BOT = 320;      // pixel y range, top plot
+  const BOT_TOP = 360, BOT_BOT = 650;     // pixel y range, bottom plot
+
+  const xToPx  = x => PLOT_LEFT + (x - X_MIN) / (X_MAX - X_MIN) * (PLOT_RIGHT - PLOT_LEFT);
+  const yToPxT = y => TOP_BOT - (y - YT_MIN) / (YT_MAX - YT_MIN) * (TOP_BOT - TOP_TOP);
+  const yToPxB = y => BOT_BOT - (y - YB_MIN) / (YB_MAX - YB_MIN) * (BOT_BOT - BOT_TOP);
+
+  const f  = x => x * x;
+  const fp = x => 2 * x;
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    const e = document.createElementNS(svgNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // ---- static grid / axes (drawn once) ----
+  const topGrid = document.getElementById('topGrid');
+  const botGrid = document.getElementById('botGrid');
+  const xTicks  = document.getElementById('xTicks');
+
+  // vertical grid lines (integers -3..3), confined to each plot's own height
+  for (let xi = -3; xi <= 3; xi++){
+    const px = xToPx(xi);
+    topGrid.appendChild(el('line', { x1: px, x2: px, y1: TOP_TOP, y2: TOP_BOT, stroke: 'var(--grid)', 'stroke-width': xi===0 ? 1.4 : 1 }));
+    botGrid.appendChild(el('line', { x1: px, x2: px, y1: BOT_TOP, y2: BOT_BOT, stroke: 'var(--grid)', 'stroke-width': xi===0 ? 1.4 : 1 }));
+  }
+  // horizontal axis (y=0) for each plot
+  topGrid.appendChild(el('line', { x1: PLOT_LEFT, x2: PLOT_RIGHT, y1: yToPxT(0), y2: yToPxT(0), stroke: 'var(--chalk-dim)', 'stroke-width': 1.4 }));
+  botGrid.appendChild(el('line', { x1: PLOT_LEFT, x2: PLOT_RIGHT, y1: yToPxB(0), y2: yToPxB(0), stroke: 'var(--chalk-dim)', 'stroke-width': 1.4 }));
+
+  // top y ticks
+  [0,2,4,6,8].forEach(v=>{
+    topGrid.appendChild(el('line', { x1: PLOT_LEFT-5, x2: PLOT_LEFT, y1: yToPxT(v), y2: yToPxT(v), stroke: 'var(--chalk-dim)', 'stroke-width': 1 }));
+    const t = el('text', { x: PLOT_LEFT-9, y: yToPxT(v)+4, 'text-anchor':'end', class:'axis-label' });
+    t.textContent = v; topGrid.appendChild(t);
+  });
+  // bottom y ticks
+  [-6,-4,-2,0,2,4,6].forEach(v=>{
+    botGrid.appendChild(el('line', { x1: PLOT_LEFT-5, x2: PLOT_LEFT, y1: yToPxB(v), y2: yToPxB(v), stroke: 'var(--chalk-dim)', 'stroke-width': 1 }));
+    const t = el('text', { x: PLOT_LEFT-9, y: yToPxB(v)+4, 'text-anchor':'end', class:'axis-label' });
+    t.textContent = v; botGrid.appendChild(t);
+  });
+  // shared x ticks, labeled once below the bottom plot
+  for (let xi = -3; xi <= 3; xi++){
+    const px = xToPx(xi);
+    xTicks.appendChild(el('line', { x1: px, x2: px, y1: BOT_BOT, y2: BOT_BOT+5, stroke: 'var(--chalk-dim)', 'stroke-width': 1 }));
+    const t = el('text', { x: px, y: BOT_BOT+20, 'text-anchor':'middle', class:'axis-label' });
+    t.textContent = xi; xTicks.appendChild(t);
+  }
+  const xAxisCaption = el('text', { x: PLOT_RIGHT, y: BOT_BOT+20, 'text-anchor':'end', class:'axis-label', fill:'var(--chalk-dim)' });
+  xAxisCaption.textContent = 'x（上下のグラフで共通）';
+  xTicks.appendChild(xAxisCaption);
+
+  // ---- static curves ----
+  let d = '';
+  for (let i = 0; i <= 128; i++){
+    const x = X_MIN + (X_MAX - X_MIN) * i / 128;
+    const px = xToPx(x), py = yToPxT(f(x));
+    d += (i === 0 ? 'M' : 'L') + px.toFixed(1) + ',' + py.toFixed(1) + ' ';
+  }
+  document.getElementById('parabola').setAttribute('d', d);
+
+  const derivLine = document.getElementById('derivLine');
+  derivLine.setAttribute('x1', xToPx(X_MIN));
+  derivLine.setAttribute('y1', yToPxB(fp(X_MIN)));
+  derivLine.setAttribute('x2', xToPx(X_MAX));
+  derivLine.setAttribute('y2', yToPxB(fp(X_MAX)));
+
+  // ---- dynamic elements ----
+  const tangent     = document.getElementById('tangent');
+  const pointTop     = document.getElementById('pointTop');
+  const pointTopCore = document.getElementById('pointTopCore');
+  const pointBot     = document.getElementById('pointBot');
+  const pointBotCore = document.getElementById('pointBotCore');
+  const connector    = document.getElementById('connector');
+  const vx  = document.getElementById('vx');
+  const vf  = document.getElementById('vf');
+  const vfp = document.getElementById('vfp');
+  const slider  = document.getElementById('xSlider');
+  const playBtn = document.getElementById('playBtn');
+
+  function render(a){
+    const fa = f(a), fpa = fp(a);
+
+    // tangent segment around the point
+    const half = 1.5;
+    const x1 = a - half, x2 = a + half;
+    const y1 = fa + fpa * (x1 - a);
+    const y2 = fa + fpa * (x2 - a);
+    tangent.setAttribute('x1', xToPx(x1));
+    tangent.setAttribute('y1', yToPxT(y1));
+    tangent.setAttribute('x2', xToPx(x2));
+    tangent.setAttribute('y2', yToPxT(y2));
+
+    const pxA = xToPx(a);
+    const pyTop = yToPxT(fa);
+    const pyBot = yToPxB(fpa);
+
+    [pointTop, pointTopCore].forEach(p => { p.setAttribute('cx', pxA); p.setAttribute('cy', pyTop); });
+    [pointBot, pointBotCore].forEach(p => { p.setAttribute('cx', pxA); p.setAttribute('cy', pyBot); });
+
+    connector.setAttribute('x1', pxA);
+    connector.setAttribute('y1', pyTop);
+    connector.setAttribute('x2', pxA);
+    connector.setAttribute('y2', pyBot);
+
+    vx.textContent  = a.toFixed(2);
+    vf.textContent  = fa.toFixed(2);
+    vfp.textContent = fpa.toFixed(2);
+  }
+
+  // ---- animation loop (ping-pong via sine) ----
+  const ANGSPEED = 0.45; // radians / second
+  let angle = 0;
+  let playing = true;
+  let lastTs = null;
+
+  function setPlaying(state){
+    playing = state;
+    lastTs = null;
+    playBtn.textContent = playing ? '⏸ 一時停止' : '▶ 再生';
+  }
+
+  function tick(ts){
+    if (playing){
+      if (lastTs === null) lastTs = ts;
+      const dt = (ts - lastTs) / 1000;
+      lastTs = ts;
+      angle += dt * ANGSPEED;
+      const a = 3 * Math.sin(angle);
+      slider.value = a;
+      render(a);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  playBtn.addEventListener('click', () => setPlaying(!playing));
+
+  slider.addEventListener('input', () => {
+    setPlaying(false);
+    const a = parseFloat(slider.value);
+    angle = Math.asin(Math.max(-1, Math.min(1, a / 3)));
+    render(a);
+  });
+
+  // respect reduced-motion preference: start paused
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) setPlaying(false);
+
+  render(0);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
